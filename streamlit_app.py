@@ -1,9 +1,13 @@
 import streamlit as st
+import openai
 import io
 from fpdf import FPDF
+import os
+
+openai.api_key = os.getenv("OPENAI_API_KEY")  # 환경변수에서 API 키를 불러옴
 
 # -------------------------------
-# 0. 데이터 정의
+# 데이터 정의
 # -------------------------------
 lens_data = {
     "관계": {
@@ -18,7 +22,7 @@ lens_data = {
 
 lens_map = {
     "생태계와 환경 변화": "관계",
-    "진화와 생물 다양성": "변화",
+    "진화와 생물 다양성": "변화"
 }
 
 leading_concepts = {
@@ -38,36 +42,66 @@ example_sentences = [
 ]
 
 # -------------------------------
-# 1. 세션 상태 초기화
+# 세션 상태 초기화
 # -------------------------------
-if 'sentence_assignments' not in st.session_state:
-    # 문장별 상태: "예시" or "비예시" or None
-    st.session_state['sentence_assignments'] = {sent: None for sent in example_sentences}
+if "sentence_assignments" not in st.session_state:
+    st.session_state.sentence_assignments = {s: None for s in example_sentences}
+
+if "feedback_cache" not in st.session_state:
+    st.session_state.feedback_cache = {}
 
 # -------------------------------
-# 2. UI 설정
+# 개념 렌즈 관련성 판단 함수 (OpenAI API)
+# -------------------------------
+def check_relevance(sentence, concept_lens):
+    cache_key = (sentence, concept_lens)
+    if cache_key in st.session_state.feedback_cache:
+        return st.session_state.feedback_cache[cache_key]
+
+    prompt = (
+        f"문장: \"{sentence}\"\n"
+        f"개념 렌즈: \"{concept_lens}\"\n"
+        "위 문장이 해당 개념 렌즈와 의미적으로 관련이 있는지 판단하세요. "
+        "관련 있다면 '관련 있음', 관련 없다면 '관련 없음'이라고만 답하세요."
+    )
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4-0613",
+            messages=[
+                {"role": "system", "content": "너는 과학 교과에서 개념 기반 수업을 도와주는 조력자야."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0
+        )
+        result = response['choices'][0]['message']['content'].strip()
+        st.session_state.feedback_cache[cache_key] = result
+        return result
+    except Exception as e:
+        return "오류 발생"
+
+# -------------------------------
+# UI 구성
 # -------------------------------
 st.set_page_config(page_title="개념기반 탐구 수업 도구", layout="wide")
 st.title("🧠 개념기반 탐구 수업 도구")
 
-# -------------------------------
-# 3. 사이드바
-# -------------------------------
 with st.sidebar:
-    selected_topic = st.selectbox(
-        "### 학습 주제를 선택하세요:",
-        ["-- 주제를 선택하세요 --"] + list(lens_map.keys())
-    )
+    st.markdown("<h3 style='text-align:center;'>학습 주제를 선택하세요</h3>", unsafe_allow_html=True)
+    selected_topic = st.selectbox("", ["-- 주제를 선택하세요 --"] + list(lens_map.keys()))
 
     st.markdown("---")
-    st.markdown("### 🔍 개념 렌즈")
+    st.markdown("<h3 style='text-align:center;'>🔍 개념 렌즈</h3>", unsafe_allow_html=True)
     if selected_topic != "-- 주제를 선택하세요 --":
-        st.success(f"**{lens_map[selected_topic]}**")
+        st.markdown(
+            f"<div style='text-align:center; background-color:#d4f8d4; padding:10px; border-radius:5px; font-size:18px;'>"
+            f"{lens_map[selected_topic]}</div>", unsafe_allow_html=True)
     else:
         st.info("학습 주제를 선택하면 표시됩니다.")
 
     st.markdown("---")
-    if st.button("📄 PDF 저장하기"):
+    st.markdown("<h3 style='text-align:center;'>📄 PDF 저장하기</h3>", unsafe_allow_html=True)
+    if st.button("PDF 생성"):
         pdf = FPDF()
         pdf.add_page()
         pdf.add_font("Arial", "", fname="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", uni=True)
@@ -75,105 +109,101 @@ with st.sidebar:
         pdf.cell(200, 10, txt="개념기반 탐구 수업 - 예시/비예시 선택 내용", ln=True, align='C')
         pdf.ln(10)
 
-        selected_examples = [s for s, v in st.session_state['sentence_assignments'].items() if v == "예시"]
-        selected_nonexamples = [s for s, v in st.session_state['sentence_assignments'].items() if v == "비예시"]
+        for category in ["예시", "비예시"]:
+            pdf.set_text_color(0, 128, 0) if category == "예시" else pdf.set_text_color(200, 0, 0)
+            pdf.cell(200, 10, txt=f"[{category}]", ln=True)
+            for s, v in st.session_state.sentence_assignments.items():
+                if v == category:
+                    pdf.cell(200, 10, txt=f"- {s}", ln=True)
 
-        if selected_examples:
-            pdf.set_text_color(0, 128, 0)
-            pdf.cell(200, 10, txt="[예시]", ln=True)
-            for ex in selected_examples:
-                pdf.cell(200, 10, txt=f"- {ex}", ln=True)
-
-        if selected_nonexamples:
-            pdf.set_text_color(200, 0, 0)
-            pdf.cell(200, 10, txt="[비예시]", ln=True)
-            for ne in selected_nonexamples:
-                pdf.cell(200, 10, txt=f"- {ne}", ln=True)
-
-        pdf_output = io.BytesIO()
-        pdf.output(pdf_output)
-        pdf_output.seek(0)
-        st.download_button(
-            "PDF 다운로드",
-            data=pdf_output.getvalue(),
-            file_name="개념기반탐구.pdf",
-            mime="application/pdf"
-        )
+        buf = io.BytesIO()
+        pdf.output(buf)
+        buf.seek(0)
+        st.download_button("PDF 다운로드", data=buf.getvalue(), file_name="개념기반탐구.pdf", mime="application/pdf")
 
 # -------------------------------
-# 4. 사이드바 밖에서 concept_lens 정의 (중요!)
+# 본문 영역
 # -------------------------------
 if selected_topic != "-- 주제를 선택하세요 --":
     concept_lens = lens_map[selected_topic]
-else:
-    concept_lens = None
 
-# -------------------------------
-# 5. 본문 UI
-# -------------------------------
-if concept_lens:
     st.markdown("### 1. 개념 정의 및 특성")
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("##### **정의**")
+        st.markdown("#### 정의")
         st.info(lens_data[concept_lens]["정의"])
     with col2:
-        st.markdown("##### **특징**")
+        st.markdown("#### 특징")
         st.success(lens_data[concept_lens]["특징"])
 
     st.markdown("---")
-    st.markdown("##### 에 해당하는 문장은 예시로, 해당하지 않는 문장은 비예시로 선택하세요.")
-
-    col3, col4 = st.columns(2)
-
-    assigned_examples = [s for s, v in st.session_state['sentence_assignments'].items() if v == "예시"]
-    assigned_nonexamples = [s for s, v in st.session_state['sentence_assignments'].items() if v == "비예시"]
-
-    with col3:
-        st.markdown("##### ✏️ 예시")
-        if assigned_examples:
-            for s in assigned_examples:
-                st.write(f"- {s}")
-        else:
-            st.info("아직 예시가 없습니다.")
-
-    with col4:
-        st.markdown("##### ❌ 비예시")
-        if assigned_nonexamples:
-            for s in assigned_nonexamples:
-                st.write(f"- {s}")
-        else:
-            st.info("아직 비예시가 없습니다.")
-
-    st.markdown("---")
-    st.markdown("### 전체 문장별 예시/비예시/미선택 구분")
-
+    st.markdown("### 2. 예시/비예시 선택")
     for idx, sent in enumerate(example_sentences):
-        current_value = st.session_state['sentence_assignments'].get(sent, None)
-        selection = st.radio(
-            label=sent,
-            options=["예시", "비예시", "미선택"],
-            index={"예시": 0, "비예시": 1, None: 2}[current_value],
-            key=f"assign_{idx}",
-            horizontal=True
-        )
-        st.session_state['sentence_assignments'][sent] = selection if selection != "미선택" else None
+        cols = st.columns([6, 2])
+        with cols[0]:
+            st.write(sent)
+        with cols[1]:
+            prev_value = st.session_state.sentence_assignments[sent]
+            choice = st.radio(
+                "", ["예시", "비예시", "미선택"],
+                index=["예시", "비예시", "미선택"].index(prev_value if prev_value else "미선택"),
+                key=f"radio_{idx}", horizontal=True, label_visibility="collapsed"
+            )
+            st.session_state.sentence_assignments[sent] = choice if choice != "미선택" else None
 
+    # -------------------------------
+    # 결과 및 피드백
+    # -------------------------------
     st.markdown("---")
-    st.markdown("### 2. 주도 개념")
-    if selected_topic in leading_concepts:
-        st.markdown(", ".join([f"**{c}**" for c in leading_concepts[selected_topic]]))
+    st.markdown("### ✅ 예시/비예시 구분 및 피드백")
+    col_left, col_right = st.columns(2)
 
-    st.markdown("### 3. 개념 렌즈 또는 주도 개념에 기반한 질문을 작성해 보세요")
-    user_question = st.text_input("질문을 입력하세요")
+    with col_left:
+        st.subheader("✏️ 예시")
+        for s, v in st.session_state.sentence_assignments.items():
+            if v == "예시":
+                st.markdown(f"- {s}")
+                feedback = check_relevance(s, concept_lens)
+                if "관련 있음" in feedback:
+                    st.success("✔️ 개념 렌즈와 관련 있음")
+                elif "관련 없음" in feedback:
+                    st.warning("⚠️ 개념 렌즈와 관련 없음")
+                else:
+                    st.error("❗ 판단 불가")
+
+    with col_right:
+        st.subheader("❌ 비예시")
+        for s, v in st.session_state.sentence_assignments.items():
+            if v == "비예시":
+                st.markdown(f"- {s}")
+                feedback = check_relevance(s, concept_lens)
+                if "관련 있음" in feedback:
+                    st.warning("⚠️ 개념 렌즈와 관련 있음")
+                elif "관련 없음" in feedback:
+                    st.success("👍 비예시로 적절함")
+                else:
+                    st.error("❗ 판단 불가")
+
+    # -------------------------------
+    # 주도 개념 + 질문 입력
+    # -------------------------------
+    st.markdown("---")
+    st.markdown("### 3. 주도 개념")
+    green_box = (
+        "<div style='background-color:#d4f8d4; padding:10px; border-radius:5px; font-size:18px;'>"
+        + ", ".join(leading_concepts[selected_topic]) + "</div>"
+    )
+    st.markdown(green_box, unsafe_allow_html=True)
+
+    st.markdown("### 4. 질문을 입력하세요")
+    user_question = st.text_input("개념 렌즈 또는 주도 개념을 활용한 탐구 질문을 작성하세요")
     if user_question:
-        st.markdown("🧠 **AI 피드백 예시**")
-        lens_matched = concept_lens in user_question
-        concepts_matched = any(concept in user_question for concept in leading_concepts[selected_topic])
-        if lens_matched:
-            st.success(f"👍 이 질문은 개념 렌즈 ‘{concept_lens}’와 관련이 있습니다.")
-        if concepts_matched:
-            matched = [c for c in leading_concepts[selected_topic] if c in user_question]
-            st.success(f"👍 이 질문은 주도 개념과 관련이 있습니다: {', '.join(matched)}")
-        if not lens_matched and not concepts_matched:
-            st.warning("❗ 이 질문은 개념 렌즈나 주도 개념과 명확한 관련이 없어 보입니다.")
+        st.markdown("🧠 AI 피드백")
+        lens_hit = concept_lens in user_question
+        concept_hit = [c for c in leading_concepts[selected_topic] if c in user_question]
+        if lens_hit:
+            st.success(f"👍 개념 렌즈 '{concept_lens}'와 관련 있음")
+        if concept_hit:
+            st.success(f"👍 주도 개념과 관련 있음: {', '.join(concept_hit)}")
+        if not lens_hit and not concept_hit:
+            st.warning("❗ 개념 렌즈나 주도 개념과의 관련성이 명확하지 않습니다.")
