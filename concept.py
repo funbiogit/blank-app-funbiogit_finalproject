@@ -73,6 +73,9 @@ if "openai_api_key" not in st.session_state:
 if "reason_explanations" not in st.session_state:
     st.session_state.reason_explanations = {s: "" for s in example_sentences}
 
+# 새로 추가: 사용자가 AI 제안 외에 최종적으로 직접 작성 또는 수정한 질문 저장 공간
+if "final_inquiry_question" not in st.session_state:
+    st.session_state.final_inquiry_question = ""
 
 # -------------------------------
 # 페이지 설정
@@ -146,7 +149,7 @@ st.title("🧠 개념 익히기")
 
 
 # -------------------------------
-# OpenAI API 클라이언트 초기화 (탐구 질문용)
+# OpenAI API 클라이언트 초기화 (질문 제안용)
 # -------------------------------
 client = None
 if st.session_state.openai_api_key.strip() != "":
@@ -157,51 +160,51 @@ if st.session_state.openai_api_key.strip() != "":
 
 
 # -------------------------------
-# 사용자 선택의 정답여부 판단 후 피드백 생성 (API 없이 로컬 판단)
+# 예시/비예시 피드백 (API 없이 로컬 판단)
 # -------------------------------
 def get_local_feedback(sentence, user_choice, concept_lens):
     if user_choice not in ["예시", "비예시"]:
         return ""
-
     correct = truth_data.get(sentence, {}).get(user_choice, None)
     if correct is None:
         return "⚠️ 이 문장에 대한 정답 데이터가 없습니다."
-
     if correct:
-        return ""  # 적절한 선택일 땐 피드백 문구 없음 (요청사항)
+        return ""  # 적절한 선택이면 피드백 없음
     else:
         return f"⚠️ '{concept_lens}'의 어떤 특성을 반영하는지 생각해보세요."
 
 
 # -------------------------------
-# 탐구 질문 검증 및 AI 피드백 함수 (OpenAI API 사용)
+# AI 탐구 질문 제안 (OpenAI API)
 # -------------------------------
-def check_question_validity(question, concept_lens, leading_concept_list):
+def suggest_inquiry_questions(topic, concept_lens, leading_concept_list, num_questions=5):
     if client is None:
-        return "⚠️ API 키를 입력해야 탐구 질문 피드백을 받을 수 있습니다."
-
+        return ["⚠️ API 키를 입력해야 AI의 제안 기능이 동작합니다."]
     prompt = (
-        f"아래 질문에 대해 평가해주세요.\n"
-        f"질문: \"{question}\"\n"
-        f"개념 렌즈: \"{concept_lens}\"\n"
-        f"주도 개념: {', '.join(leading_concept_list)}\n"
-        "이 질문이 해당 개념 렌즈와 주도 개념을 활용한 탐구 질문으로 적절한지 간결히 피드백하세요.\n"
-        "질문인지 일반 문장인지 구분하고, 만약 일반 문장이면 적절하지 않다고 알려주세요."
+        f"학습 주제: {topic}\n"
+        f"개념 렌즈: {concept_lens}\n"
+        f"주도 개념: {', '.join(leading_concept_list)}\n\n"
+        "아래 조건을 모두 만족하는 탐구 질문을 각각 한 줄씩 여러 개 생성해줘.\n"
+        "- 탐구 질문은 반드시 무엇, 왜, 어떻게 등 다양한 의문어로 시작\n"
+        "- 각 질문에는 주도 개념 중 최소 한 가지가 반드시 포함되어야 함\n"
+        "- 각 질문은 학습 주제와 깊은 관련이 있어야 함\n"
+        "- 너무 짧지 않고 탐구 가치가 있는 내용을 만들어야 함\n"
+        f"- 출력은 번호 없이 각 질문을 한 줄씩 나열만 해줘"
     )
-
     try:
         response = client.chat.completions.create(
             model="gpt-4-0613",
             messages=[
-                {"role": "system", "content": "너는 과학 교과에서 개념 기반 수업을 지원하는 조력자입니다."},
+                {"role": "system", "content": "너는 과학 개념기반 수업에서 탐구 질문을 다양하게 제안하는 지능형 조력자다."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0,
-            max_tokens=150
+            temperature=0.7,
+            max_tokens=300
         )
-        return response.choices[0].message.content.strip()
+        lines = [q.strip() for q in response.choices[0].message.content.strip().split('\n') if q.strip()]
+        return lines
     except Exception as e:
-        return f"API 호출 오류: {e}"
+        return [f"API 호출 오류: {e}"]
 
 
 # -------------------------------
@@ -209,7 +212,6 @@ def check_question_validity(question, concept_lens, leading_concept_list):
 # -------------------------------
 if selected_topic != "-- 주제를 선택하세요 --":
     concept_lens = lens_map[selected_topic]
-
 
     st.markdown("### 1. 개념 정의 및 특성")
     col1, col2 = st.columns(2)
@@ -219,7 +221,6 @@ if selected_topic != "-- 주제를 선택하세요 --":
     with col2:
         st.markdown("#### 특징")
         st.success(lens_data[concept_lens]["특징"])
-
 
     st.markdown("---")
     st.markdown("### 2. 예시/비예시 선택 및 피드백")
@@ -237,15 +238,13 @@ if selected_topic != "-- 주제를 선택하세요 --":
             )
             st.session_state.sentence_assignments[sent] = choice if choice != "미선택" else None
 
-
         # 피드백 영역
         user_choice = st.session_state.sentence_assignments[sent]
         feedback = get_local_feedback(sent, user_choice, concept_lens)
         if feedback:
             st.markdown(f"**피드백:** {feedback}")
         else:
-            st.markdown("<br>", unsafe_allow_html=True)  # 적절할 때 피드백 공간 공백 처리
-
+            st.markdown("<br>", unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("### 3. 주도 개념")
@@ -266,13 +265,35 @@ if selected_topic != "-- 주제를 선택하세요 --":
     """
     st.markdown(green_box_html, unsafe_allow_html=True)
 
-
     st.markdown("---")  # 4번 질문 입력 전 구분선 추가
-    st.markdown("### 4. 질문을 입력하세요")
-    user_question = st.text_input("개념 렌즈 또는 주도 개념을 활용한 탐구 질문을 작성하세요")
-    if user_question:
-        st.markdown("🧠 AI 피드백")
-        feedback = check_question_validity(user_question, concept_lens, leading_concepts[selected_topic])
-        st.info(feedback)
+    st.markdown("### 4. 탐구 질문 만들기")
+
+    # 4. 질문 입력 변경 부분: 안내문과 텍스트 영역 추가
+    st.markdown(f"사용자가 선택한 학습 주제 **'{selected_topic}'**와 관련하여 주도 개념을 활용한 탐구 질문을 생각하여 작성하세요.")
+    user_question = st.text_area(
+        "탐구 질문을 작성하세요 (최대 5문장까지 작성할 수 있습니다.)",
+        value="",
+        max_chars=1000,  # 글자수 제한 임의 설정 (5문장 정도 넉넉히)
+        height=130,
+        key="user_inquiry_input"
+    )
+
+    st.markdown("#### AI의 제안")
+    suggestions = suggest_inquiry_questions(
+        selected_topic, concept_lens, leading_concepts[selected_topic]
+    )
+    for q in suggestions:
+        st.markdown(f"- {q}")
+
+    # 사용자 최종 수정/선택 질문 입력란 추가
+    st.markdown("#### 최종적으로 선택하거나 수정한 탐구 질문을 작성하세요.")
+    final_question = st.text_area(
+        "최종 탐구 질문 입력",
+        value=st.session_state.final_inquiry_question,
+        max_chars=1000,
+        height=130,
+        key="final_inquiry_question"
+    )
+
 else:
     st.info("왼쪽 사이드바에서 학습 주제를 선택하세요.")
