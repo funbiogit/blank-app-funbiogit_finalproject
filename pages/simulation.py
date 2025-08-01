@@ -1,143 +1,143 @@
 import streamlit as st
-import matplotlib.pyplot as plt
-import numpy as np
-import matplotlib.font_manager as fm
 import os
+from fpdf import FPDF
 
-# --- NanumGothic 한글폰트 강제 고정 ---
-font_path = "fonts/NanumGothic.ttf"
-if not os.path.isfile(font_path):
-    st.error("fonts/NanumGothic.ttf 경로에 한글 폰트 파일이 필요합니다!")
-fontprop = fm.FontProperties(fname=font_path)
-plt.rcParams['font.family'] = fontprop.get_name()
-plt.rcParams['axes.unicode_minus'] = False
-
-st.set_page_config(page_title="4단계 먹이사슬 시뮬레이션", layout="wide")
-st.title("4단계 먹이 피라미드와 생태계 평형 시뮬레이터")
-
-with st.sidebar:
-    st.header("초기 개체수와 섭식률")
-    P0 = st.number_input("생산자(풀) 초기 개체수", min_value=100, value=1000, step=50)
-    H1_0 = st.number_input("1차소비자(토끼) 초기 개체수", min_value=1, value=120, step=1)
-    H2_0 = st.number_input("2차소비자(여우) 초기 개체수", min_value=0, value=24, step=1)
-    H3_0 = st.number_input("3차소비자(매) 초기 개체수", min_value=0, value=4, step=1)
-    N = st.slider("진행 단계(시간)", 1, 200, 50, 1)
-    st.markdown("### [Only] 섭식률(먹이관계 강도) 조절")
-    b1 = st.slider("1차소비자 섭식률(b1; 풀→토끼)", 0.0005, 0.02, 0.002, 0.0005, format="%.4f")
-    b2 = st.slider("2차소비자 섭식률(b2; 토끼→여우)", 0.0001, 0.008, 0.001, 0.0001, format="%.4f")
-    b3 = st.slider("3차소비자 섭식률(b3; 여우→매)", 0.0001, 0.006, 0.0007, 0.0001, format="%.4f")
-    st.info("*섭식률만 조작하며 각 수준의 변동·진동·파급효과를 확인하세요.")
-
-a = 0.08         # 생산자 성장률
-e1, d1 = 0.004, 0.022
-e2, d2 = 0.002, 0.011
-e3, d3 = 0.0012, 0.007
-
-P = [P0]
-H1 = [H1_0]
-H2 = [H2_0]
-H3 = [H3_0]
-prev_dP = 0  # prev_dP 변수 초기화 오류 대응
-
-for t in range(N):
-    prev_P, prev_H1, prev_H2, prev_H3 = P[-1], H1[-1], H2[-1], H3[-1]
-
-    prev_dH1 = H1[-1] - H1[-2] if t >= 1 else 0
-    prev_dH2 = H2[-1] - H2[-2] if t >= 1 else 0
-    prev_dH3 = H3[-1] - H3[-2] if t >= 1 else 0
-
-    # --- 생산자 ---
-    growth = a * prev_P
-    loss_by_H1 = b1 * prev_P * prev_H1
-    feedback1 = 0
-    if prev_dH1 < 0:
-        feedback1 = abs(prev_dH1) * (0.08 + 0.2*abs(np.tanh(prev_dH1/(prev_H1+0.1))))
-    next_P = prev_P + growth - loss_by_H1 + feedback1
-    next_P = max(next_P, 1)
-
-    # --- 1차소비자 ---
-    gain = e1 * b1 * prev_P * prev_H1
-    nat_loss = d1 * prev_H1
-    loss_by_H2 = b2 * prev_H1 * prev_H2
-    feedback2 = 0
-    if prev_dH2 < 0:
-        feedback2 = abs(prev_dH2) * 0.09
-    if prev_dP > 0:
-        feedback2 += abs(prev_dP) * 0.047
-    next_H1 = prev_H1 + gain - nat_loss - loss_by_H2 + feedback2
-    next_H1 = max(next_H1, 1)
-
-    # --- 2차소비자 ---
-    gain2 = e2 * b2 * prev_H1 * prev_H2
-    nat_loss2 = d2 * prev_H2
-    loss_by_H3 = b3 * prev_H2 * prev_H3
-    feedback3 = 0
-    if prev_dH3 < 0:
-        feedback3 = abs(prev_dH3) * 0.15
-    if prev_dH1 > 0:
-        feedback3 += abs(prev_dH1) * 0.04
-    next_H2 = prev_H2 + gain2 - nat_loss2 - loss_by_H3 + feedback3
-    next_H2 = max(next_H2, 0)
-
-    # --- 3차소비자 ---
-    gain3 = e3 * b3 * prev_H2 * prev_H3
-    nat_loss3 = d3 * prev_H3
-    feedback4 = 0
-    if prev_dH2 > 0:
-        feedback4 = abs(prev_dH2) * 0.032
-    next_H3 = prev_H3 + gain3 - nat_loss3 + feedback4
-    next_H3 = max(next_H3, 0)
-
-    P.append(next_P)
-    H1.append(next_H1)
-    H2.append(next_H2)
-    H3.append(next_H3)
-    prev_dP = next_P - prev_P
-
-# ---------- 1. 개체수 변화 그래프 ----------
-st.subheader("🍀 개체수 변화 그래프 (상호 피드백 진동)")
-levels = ["생산자", "1차소비자", "2차소비자", "3차소비자"]
-t_list = np.arange(1, N+2)
-fig, ax = plt.subplots(figsize=(10, 4))
-ax.plot(t_list, P, label=levels[0], color="green")
-ax.plot(t_list, H1, label=levels[1], color="orange")
-ax.plot(t_list, H2, label=levels[2], color="red")
-ax.plot(t_list, H3, label=levels[3], color="purple")
-ax.set_xlabel("단계(시간, 1부터)", fontproperties=fontprop)
-ax.set_ylabel("개체수", fontproperties=fontprop)
-ax.grid(alpha=0.3)
-ax.legend(prop=fontprop)
-st.pyplot(fig)
-
-# ---------- 2. 특정 단계의 피라미드 ----------
-st.subheader("🌲 특정 단계에서의 생태 피라미드")
-select_step = st.slider("피라미드로 보고 싶은 단계를 선택하세요", 1, N+1, N+1, 1)
-curvals = [P[select_step-1], H1[select_step-1], H2[select_step-1], H3[select_step-1]]
-maxv = max(curvals+[1])
-fig2, ax2 = plt.subplots(figsize=(5, 6))
-for i, (level, val) in enumerate(zip(levels, curvals)):
-    width = val / maxv * 0.9
-    ax2.barh([3-i], width, left=(1-width)/2, height=0.8, color=f"C{i}", edgecolor="k")
-    ax2.text(1, 3-i, f"{level}: {int(val)}", va='center', ha='right', fontsize=14, fontweight='bold', fontproperties=fontprop)
-ax2.set_xlim(0, 1)
-ax2.set_yticks(range(4))
-ax2.set_yticklabels(reversed(levels), fontsize=14, fontproperties=fontprop)
-ax2.invert_yaxis()
-ax2.axis('off')
-st.pyplot(fig2)
-
-# ---------- 3. 데이터 표 ----------
-st.markdown("#### 단계별 개체수 변화 표")
-data = {
-    "단계": list(range(1, N+2)),
-    "생산자": [int(x) for x in P],
-    "1차소비자": [int(x) for x in H1],
-    "2차소비자": [int(x) for x in H2],
-    "3차소비자": [int(x) for x in H3],
-}
-st.dataframe(data)
-
+# --------------------
+# 기본 설정
+# --------------------
+st.set_page_config(layout="wide")
 st.markdown("""
-- 단계별로 생산자와 각 소비자가 증가·감소를 반복하며, **상호 피드백** 메커니즘이 실제 자연처럼 작동하며 시각적으로 확인됩니다.
-- 그래프와 피라미드, 표 모두 한글이 깨짐 없이 잘 표시됩니다.
-""")
+    <style>
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label {
+        justify-content: center;
+        display: flex;
+    }
+    section[data-testid="stSidebar"] > div:first-child {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .center-box {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #e0f0ff;
+        padding: 10px;
+        border-radius: 10px;
+        margin: 5px;
+        font-weight: bold;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# --------------------
+# 사이드바 구성
+# --------------------
+st.sidebar.markdown("## 학습 주제 선택")
+topic = st.sidebar.selectbox("학습 주제", ["생태계와 환경 변화", "진화와 생물 다양성"])
+
+if topic == "생태계와 환경 변화":
+    lens = "관계"
+    lens_def = "관계는 두 개 이상의 요소가 한 방향 또는 상호 영향을 주고받는 방식이나 연결 방식을 의미한다."
+    lens_feat = "- 각 요소 중 하나 이상에 변화가 나타남.\n- 요소 간 주고받는 영향을 통해 복합적인 의미가 나타남."
+    
+
+elif topic == "진화와 생물 다양성":
+    lens = "변화"
+    lens_def = "하나의 형태, 상태, 가치가 다른 형태, 상태, 가치로 전환, 변형 또는 이동하는 현상을 말한다."
+    lens_feat = "- 원인, 과정, 결과의 틀 속에서 무엇이, 왜, 어떻게 달라지는지 설명할 수 있음.\n- 연속적 혹은 불연속적으로 일어날 수 있음."
+else:
+    lens = ""
+    lens_def = ""
+    lens_feat = ""
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("<div style='text-align:center; font-weight:bold; font-size:18px;'>개념 렌즈</div>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<div style='background-color:#d1f5d3; padding:8px; border-radius:8px; text-align:center; font-weight:bold;'>{lens}</div>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<div style='background-color:#fff4c2; padding:8px; border-radius:8px; font-weight:normal; text-align:left;'><strong>정의:</strong> {lens_def}</div>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<div style='background-color:#fff4c2; padding:8px; border-radius:8px; font-weight:normal; text-align:left; white-space:pre-wrap;'><strong>특징:</strong> {lens_feat}</div>", unsafe_allow_html=True)
+st.sidebar.markdown("---")
+
+api_key = st.sidebar.text_input("OpenAI API Key 입력", type="password")
+
+if st.sidebar.button("PDF로 저장"):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="학습 결과 저장 예시", ln=True, align='C')
+    with open("output.pdf", "wb") as f:
+        pdf.output(f)
+    st.sidebar.success("PDF로 저장되었습니다.")
+
+# --------------------
+# 메인 페이지 구성
+# --------------------
+if topic == "생태계와 환경 변화":
+    st.title("생태계 구성 요소와 관계")
+
+    st.subheader("1. 생물 요소와 비생물 요소")
+    cols = st.columns(4)
+    all_elements = ["벼", "토양", "참새", "빛", "늑대", "지렁이", "공기", "족제비", "세균", "온도", "수분", "메뚜기", "수리부엉이", "곰팡이", "콩"]
+
+    for i, elem in enumerate(all_elements):
+        with cols[i % 4]:
+            st.markdown(f"<div class='center-box'>{elem}</div>", unsafe_allow_html=True)
+
+    st.subheader("2. 요소 분류하기")
+    bio_selected = st.multiselect("생물 요소로 분류할 것들", all_elements)
+    abio_selected = st.multiselect("비생물 요소로 분류할 것들", all_elements)
+
+    st.subheader("3. 생물 요소와 비생물 요소 간의 관계")
+    st.markdown("다음 각각의 관계에 대한 예시를 작성해보세요:")
+    relation_blight = st.text_area("빛 - 생물 요소")
+    relation_temp = st.text_area("온도 - 생물 요소")
+    relation_water = st.text_area("수분 - 생물 요소")
+    relation_air = st.text_area("공기 - 생물 요소")
+    relation_soil = st.text_area("토양 - 생물 요소")
+
+    st.subheader("4. 생물 요소의 세 가지 역할")
+    st.markdown("- 생물 요소는 **생산자, 소비자, 분해자**로 구분됩니다.")
+
+    st.subheader("5. 용어 연결하기")
+    role_options = ["생산자", "소비자", "분해자"]
+    definitions = {
+        "생산자": "광합성을 통해 스스로 먹이를 생산하고 소비하는 생물",
+        "소비자": "다른 생물을 먹고 에너지를 얻는 생물",
+        "분해자": "죽은 생물을 분해하여 에너지를 얻는 생물"
+    }
+
+    for role in role_options:
+        answer = st.selectbox(f"{role}의 정의로 가장 적절한 것을 고르세요.", ["선택하세요"] + list(definitions.values()), key=role)
+        if answer == definitions[role]:
+            st.success("정답입니다!")
+        elif answer != "선택하세요":
+            st.warning("다시 생각해보세요.")
+
+    st.subheader("6. 생물 요소 분류하기")
+    producers = st.multiselect("생산자", bio_selected)
+    consumers = st.multiselect("소비자", bio_selected)
+    decomposers = st.multiselect("분해자", bio_selected)
+
+    st.subheader("7. 생물 간 상호작용 조사")
+    st.markdown("역할별로 분류한 생물 중 한 가지 씩을 고르세요.")
+
+    selected_producer = st.selectbox("생산자 중 하나 선택", ["선택하세요"] + producers)
+    selected_consumer = st.selectbox("소비자 중 하나 선택", ["선택하세요"] + consumers)
+    selected_decomposer = st.selectbox("분해자 중 하나 선택", ["선택하세요"] + decomposers)
+
+    st.markdown("**생산자와 소비자 간 상호작용**을 작성해보세요:")
+    st.text_area("예: 소비자는 생산자를 먹이로 삼아 에너지를 얻는다")
+
+    st.markdown("**생산자와 분해자 간 상호작용**을 작성해보세요:")
+    st.text_area("예: 분해자는 죽은 생산자를 분해하여 영양분을 순환시킨다")
+
+    st.markdown("**소비자와 분해자 간 상호작용**을 작성해보세요:")
+    st.text_area("예: 분해자는 소비자의 사체를 분해한다")
+
+
+    st.markdown("**이들 사례를 종합하여 아래 문장의 빈칸을 채워보세요.**")
+    st.text_input("생물 요소 사이에는 [            ] 관계가 있다.")
+
+
+elif topic == "진화와 생물 다양성":
+    st.switch_page("/page3")  # Page3으로 이동 (Streamlit v1.25+ 필요)
