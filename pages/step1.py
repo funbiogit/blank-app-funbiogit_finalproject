@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 from fpdf import FPDF
+import io
 
 st.markdown("""
 <style>
