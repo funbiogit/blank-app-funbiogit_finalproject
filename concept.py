@@ -174,19 +174,7 @@ if "final_inquiry_question" not in st.session_state:
 st.set_page_config(page_title="개념기반 탐구 수업 도구", layout="wide")
 
 with st.sidebar:
-    st.markdown("<h3 style='text-align:center; margin-bottom:12px;'>OpenAI API 키 입력</h3>", unsafe_allow_html=True)
-    with st.container():
-        api_key_input = st.text_input(
-            "API 키 입력", type="password",
-            value=st.session_state.openai_api_key,
-            help="API 키를 입력해 주세요.",
-            label_visibility="collapsed"
-        )
-    if api_key_input != st.session_state.openai_api_key:
-        st.session_state.openai_api_key = api_key_input
-        st.success("API 키가 저장되었습니다.")
-
-    st.markdown("---")
+    
     st.markdown("<h3 style='text-align:center; margin-bottom:11px;'>학습 주제를 선택하세요</h3>", unsafe_allow_html=True)
     with st.container():
         selected_topic = st.selectbox(
@@ -205,6 +193,20 @@ with st.sidebar:
         st.info("학습 주제를 선택하면 표시됩니다.")
     st.markdown("---")
     
+    st.markdown("<h3 style='text-align:center; margin-bottom:12px;'>OpenAI API 키 입력</h3>", unsafe_allow_html=True)
+    with st.container():
+        api_key_input = st.text_input(
+            "API 키 입력", type="password",
+            value=st.session_state.openai_api_key,
+            help="API 키를 입력해 주세요.",
+            label_visibility="collapsed"
+        )
+    if api_key_input != st.session_state.openai_api_key:
+        st.session_state.openai_api_key = api_key_input
+        st.success("API 키가 저장되었습니다.")
+
+    st.markdown("---")
+
     st.markdown("<h3 style='text-align:center; margin-bottom:10px;'>PDF 저장하기</h3>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([0.2, 1, 1])
     with col2:
