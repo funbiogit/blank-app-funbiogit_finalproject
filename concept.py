@@ -3,12 +3,12 @@ import io
 from fpdf import FPDF
 from openai import OpenAI
 
+
 st.markdown("""
 <style>
-    /* 사이드바: 모든 글자 검은색, 제목 크기+간격, 박스 간격 조정 */
     [data-testid="stSidebar"] * { color: black !important; }
     [data-testid="stSidebar"] h3, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h1 {
-        font-size: 1.25rem !important; /* 기존보다 약간 크게 */
+        font-size: 1.25rem !important;
         margin-bottom: 6px !important;
         margin-top: 18px !important;
         font-weight: 700;
@@ -33,7 +33,7 @@ st.markdown("""
         letter-spacing: 1px;
     }
     [data-testid="stSidebar"] button { min-width: 170px !important; max-width: 270px; white-space:nowrap !important; font-size: 15px; }
- 
+
     .section-header {
         color: #2d3748;
         font-size: 1.7rem !important;
@@ -41,8 +41,6 @@ st.markdown("""
         margin: 30px 0 20px 0;
         text-align: left;
     }
-
-                /* 메인 개념 렌즈 - 사이드 박스와 스타일 동일하게 */
     .main-lens-box {
         background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);
         color: #212121;
@@ -58,11 +56,7 @@ st.markdown("""
         border: 1.3px solid #f06292;
         letter-spacing: 1px;
     }
-
-    /* 1. 개념정의/특성/렌즈 제목 폰트 동일+크게 */
     .concepttitle { font-size: 23px !important; text-align:center; font-weight:700; margin-bottom:4px; margin-top:8px;}
-
-    /* 정의/특징 파란색 박스 */
     .definition-card, .feature-card {
         background: linear-gradient(135deg, #def7fe 0%, #e7eeff 100%);
         padding: 18px;
@@ -73,12 +67,9 @@ st.markdown("""
         border: none;
         color: #174a7c !important;
     }
-
-    /* 2번 지시: 안내문 글자(작게) */
     .example-guide {
         font-size: 15px; color:#353535; font-weight:500; margin-top:6px; margin-bottom:4px;
     }
-    /* 3. 주도 개념 박스: 분홍색, 폭 줄이기, 중앙 정렬! */
     .leading-box {
         background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);
         color: #212121;
@@ -94,16 +85,14 @@ st.markdown("""
         border: 1.2px solid #f06292;
         letter-spacing: 1px;
     }
-
-    /* 탐구질문: 모든 안내문 글자/AI/최종 동일계열, 크기/간격 */
     .inquiry-guide, .inquiry-limit, .final-inquiry, .final-guide {
         font-size: 15px;
         font-weight: 500;
         color: #203a4d;
         margin: 7px 0 4px 0;
         padding: 0;
+        text-indent: 2em;
     }
-    /* AI 제안 더 작게 */
     .ai-suggestion {
         background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
         padding: 13px 16px;
@@ -114,8 +103,6 @@ st.markdown("""
         font-size: 13px;
         color: #663c00;
     }
-
-    /* 타이틀 스타일 - 왼쪽 정렬로 변경 */
     .main-title {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         -webkit-background-clip: text;
@@ -127,15 +114,16 @@ st.markdown("""
         margin: 30px 0;
     }
     [data-testid="stSidebar"] input[type="password"] {
-    width: 100% !important;  /* 사이드바 폭에 맞게 꽉 채움 */
-    min-width: 250px !important;  /* 최소 너비 설정 예시 */}        
-            
+        width: 100% !important;
+        min-width: 250px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
+
 lens_data = {
     "관계": {
-        "정의": "두 개 이상의 요소사이에 존재하는 연관성 또는 관련이 있는 상태를 의미함.",
+        "정의": "서로 다른 요소 사이에 존재하는 연관성 또는 관련이 있는 상태를 의미함.",
         "특징": "- 각 요소 중 하나 이상에 변화가 나타남<br> - 요소 간 주고받는 영향을 통해 복합적인 의미가 나타남"
     },
     "변화": {
@@ -152,24 +140,24 @@ leading_concepts = {
     "진화와 생물 다양성": ["자연선택", "생물 다양성"]
 }
 example_sentences = [
-    "1. 세포는 하나의 생명 시스템이다.",
-    "2. 멜라닌을 합성하는 효소가 많은 사람은 피부색이 어둡다.",
-    "3. DNA의 염기 서열의 변화로 단백질의 입체구조가 바뀌었다.",
-    "4. 온도를 높였더니 효소의 활성이 나타나지 않았다.",
-    "5. 엽록체는 광합성을 수행한다.",
-    "6. 세포막은 인지질과 단백질로 이루어져 있다.",
-    "7. 다른 생명체에서 채취한 유전자를 삽입해 생명체에 새로운 특성이 부여된다.",
-    "8. 효소는 기질 특이성이 있다."
+    " 1. 세포는 하나의 생명 시스템이다.",
+    " 2. 멜라닌을 합성하는 효소가 많은 사람은 피부색이 어둡다.",
+    " 3. DNA의 염기 서열의 변화로 단백질의 입체구조가 바뀌었다.",
+    " 4. 온도를 높였더니 효소의 활성이 나타나지 않았다.",
+    " 5. 엽록체는 광합성을 수행한다.",
+    " 6. 세포막은 인지질과 단백질로 이루어져 있다.",
+    " 7. 다른 생명체에서 채취한 유전자를 삽입해 생명체에 새로운 특성이 부여된다.",
+    " 8. 효소는 기질 특이성이 있다."
 ]
 truth_data = {
-    "1. 세포는 하나의 생명 시스템이다.": {"예시": False, "비예시": True},
-    "2. 멜라닌을 합성하는 효소가 많은 사람은 피부색이 어둡다.": {"예시": True, "비예시": False},
-    "3. DNA의 염기 서열의 변화로 단백질의 입체구조가 바뀌었다.": {"예시": True, "비예시": False},
-    "4. 온도를 높였더니 효소의 활성이 나타나지 않았다.": {"예시": True, "비예시": False},
-    "5. 엽록체는 광합성을 수행한다.": {"예시": False, "비예시": True},
-    "6. 세포막은 인지질과 단백질로 이루어져 있다.": {"예시": False, "비예시": True},
-    "7. 다른 생명체에서 채취한 유전자를 삽입해 생명체에 새로운 특성이 부여된다.": {"예시": True, "비예시": False},
-    "8. 효소는 기질 특이성이 있다.": {"예시": False, "비예시": True}
+    " 1. 세포는 하나의 생명 시스템이다.": {"예시": False, "비예시": True},
+    " 2. 멜라닌을 합성하는 효소가 많은 사람은 피부색이 어둡다.": {"예시": True, "비예시": False},
+    " 3. DNA의 염기 서열의 변화로 단백질의 입체구조가 바뀌었다.": {"예시": True, "비예시": False},
+    " 4. 온도를 높였더니 효소의 활성이 나타나지 않았다.": {"예시": True, "비예시": False},
+    " 5. 엽록체는 광합성을 수행한다.": {"예시": False, "비예시": True},
+    " 6. 세포막은 인지질과 단백질로 이루어져 있다.": {"예시": False, "비예시": True},
+    " 7. 다른 생명체에서 채취한 유전자를 삽입해 생명체에 새로운 특성이 부여된다.": {"예시": True, "비예시": False},
+    " 8. 효소는 기질 특이성이 있다.": {"예시": False, "비예시": True}
 }
 
 if "sentence_assignments" not in st.session_state:
@@ -294,6 +282,54 @@ def suggest_inquiry_questions(topic, concept_lens, leading_concept_list, num_que
     except Exception as e:
         return [f"API 호출 오류: {e}"]
 
+def give_inquiry_feedback(user_input, topic, leading_concept_list):
+    import re
+
+    # 학습 주제별 키워드(의미적 관련성 체크)
+    topic_keywords = {
+        "생태계와 환경 변화": ["생태계", "환경", "상호작용", "상호 작용", "변화", "생물", "환경 변화", "에너지 흐름", "평형"],
+        "진화와 생물 다양성": ["진화", "생물 다양성", "자연선택", "변화", "종", "적응"]
+    }
+
+    # 의문사 및 의미 유사 표현 목록
+    interrogative_variants = ["무엇", "어떻게", "왜", "어떠", "뭐", "무슨", "어떤"]
+
+    feedbacks = []
+    # 여러 문장 분리 (최대 5개, 빈 문장 제거)
+    questions = [q.strip() for q in user_input.split('\n') if q.strip()]
+    questions = questions[:5]
+
+    topic_kw = topic_keywords.get(topic, [])
+    user_lower = user_input.lower()
+
+    for idx, question in enumerate(questions, start=1):
+        q_lower = question.lower()
+
+        # 1) 학습 주제 관련성 체크 (키워드 포함 여부)
+        related = any(kw.lower() in q_lower for kw in topic_kw)
+
+        # 2) 주도 개념 포함 여부 (소문자 비교)
+        concept_found = any(concept.lower() in q_lower for concept in leading_concept_list)
+
+        # 3) 의문사 포함 여부 (의미적 유사 포함)
+        inter_found = any(re.search(iv, question) for iv in interrogative_variants)
+
+        # 개별 질문에 피드백 작성 (타당하면 피드백 안 줌, 부적절하면 경고를 담음)
+        lines = []
+        if not related:
+            lines.append("‣ 학습 주제와 관련된 내용이 포함되어 있지 않습니다.")
+        if not concept_found:
+            lines.append(f"‣ 주도 개념({', '.join(leading_concept_list)}) 중 하나 이상을 포함해 주세요.")
+        if not inter_found:
+            lines.append("‣ 탐구 질문에 '무엇', '어떻게', '왜' 중 하나 또는 유사 의문사를 포함해 주세요.")
+
+        if lines:
+            feedbacks.append(f"{idx}번 질문: " + " ".join(lines))
+
+    # 전체 피드백 텍스트를 HTML 줄바꿈으로 합침
+    return "<br>".join(feedbacks)
+
+
 if selected_topic != "-- 주제를 선택하세요 --":
     concept_lens = lens_map[selected_topic]
     st.markdown("---")
@@ -330,11 +366,16 @@ if selected_topic != "-- 주제를 선택하세요 --":
             st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("---")
     st.markdown("<div class='section-header'>3. 주도 개념</div>", unsafe_allow_html=True)
+    st.markdown("<div class='inquiry-guide'>주도 개념은 단원에서의 핵심 주제를 말합니다.</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='leading-box'>{', '.join(leading_concepts[selected_topic])}</div>", unsafe_allow_html=True)
+
+
     st.markdown("---")
     st.markdown("<div class='section-header'>4. 탐구 질문 만들기</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='inquiry-guide'>'{selected_topic}'에 대한 탐구 질문을 작성해보세요.</div>", unsafe_allow_html=True)
-    st.markdown("<div class='inquiry-guide'>주도개념 및 개념 렌즈가 포함되도록 <b>질문</b>을 구성하세요.</div>", unsafe_allow_html=True)
+    st.markdown(f"<span style='font-size:20px; font-weight:600;'> 1) '{selected_topic}'에 대한 탐구 질문을 작성해보세요.</span>", unsafe_allow_html=True)
+    st.markdown("<div class='inquiry-guide'>* 단원과 관련하여 주도 개념에 대해 떠오르는 의문을 작성해보세요.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='inquiry-limit'>* 각 질문마다 무엇을, 어떻게, 왜 중 한 가지를 사용해보세요.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='inquiry-limit'>* 최대 5개까지  작성할 수 있습니다.</div>", unsafe_allow_html=True)
     user_question = st.text_area(
         "",
         value="",
@@ -342,15 +383,26 @@ if selected_topic != "-- 주제를 선택하세요 --":
         height=130,
         key="user_inquiry_input"
     )
-    st.markdown("<div class='inquiry-limit'>탐구 질문을 최대 5문장까지 작성할 수 있습니다.</div>", unsafe_allow_html=True)
-    st.markdown("<span style='font-size:20px; font-weight:600;'>AI의 제안</span>", unsafe_allow_html=True)
+    # ----------------- 여기부터 수정된 피드백 출력 코드 -----------------
+    if user_question.strip():
+        feedback_html = give_inquiry_feedback(user_question, selected_topic, leading_concepts[selected_topic])
+        if feedback_html.strip():
+            st.markdown(f"<div class='feedback-warning'>{feedback_html}</div>", unsafe_allow_html=True)
+    # --------------------------------------------------------------
+
+    st.markdown("---")
+    st.markdown("<span style='font-size:20px; font-weight:600;'> 2) AI가 제안하는 탐구 질문을 자신이 작성한 것과 비교해보세요.</span>", unsafe_allow_html=True)
+    st.markdown("<div class='final-inquiry'>* AI의 제안</div>", unsafe_allow_html=True)
     suggestions = suggest_inquiry_questions(
         selected_topic, concept_lens, leading_concepts[selected_topic]
     )
     for q in suggestions:
         st.markdown(f"<div class='ai-suggestion'>{q}</div>", unsafe_allow_html=True)
-    st.markdown("<div class='final-inquiry'>최종 탐구 질문을 작성해보세요.</div>", unsafe_allow_html=True)
-    st.markdown("<div class='final-guide'>자신이 작성한 것 또는 AI가 제안한 것 중 선택 또는 수정해도 괜찮습니다.</div>", unsafe_allow_html=True)
+
+
+    st.markdown("---")
+    st.markdown("<span style='font-size:20px; font-weight:600;'> 3) 최종 탐구 질문을 작성해보세요.</span>", unsafe_allow_html=True)
+    st.markdown("<div class='final-guide'>* 자신이 작성한 것 또는 AI가 제안한 것 중 선택 또는 수정해도 괜찮습니다.</div>", unsafe_allow_html=True)
     final_question = st.text_area(
         "",
         value=st.session_state.final_inquiry_question,
