@@ -108,7 +108,7 @@ with st.sidebar:
     st.markdown("<h3 style='text-align:center;'>🔍 개념 렌즈</h3>", unsafe_allow_html=True)
     if selected_topic != "-- 주제를 선택하세요 --":
         st.markdown(
-            f"<div style='text-align:center; background-color:#d4f8d4; padding:10px; border-radius:5px; font-size:18px;'>"
+            f"<div style='text-align:center; background-color:#fce4ec; padding:10px; border-radius:5px; font-size:18px;'>"
             f"{lens_map[selected_topic]}</div>", unsafe_allow_html=True)
     else:
         st.info("학습 주제를 선택하면 표시됩니다.")
@@ -213,13 +213,25 @@ def suggest_inquiry_questions(topic, concept_lens, leading_concept_list, num_que
 if selected_topic != "-- 주제를 선택하세요 --":
     concept_lens = lens_map[selected_topic]
 
+    st.markdown("---")
     st.markdown("### 1. 개념 정의 및 특성")
+    
+    st.markdown("<h3 style='text-align:center;'>개념 렌즈</h3>", unsafe_allow_html=True)
+    if selected_topic != "-- 주제를 선택하세요 --":
+        st.markdown(
+            f"<div style='text-align:center; background-color:#fce4ec; padding:10px; border-radius:5px; font-size:30px; width:20%; margin:0 auto;'>"
+            f"{lens_map[selected_topic]}</div>", unsafe_allow_html=True)
+    else:
+        st.info("학습 주제를 선택하면 표시됩니다.")
+    
+    st.markdown("")
+
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("#### 정의")
+        st.markdown("<h4 style='text-align:center;'>정의</h4>", unsafe_allow_html=True)
         st.info(lens_data[concept_lens]["정의"])
     with col2:
-        st.markdown("#### 특징")
+        st.markdown("<h4 style='text-align:center;'>특징</h4>", unsafe_allow_html=True)
         st.success(lens_data[concept_lens]["특징"])
 
     st.markdown("---")
@@ -250,28 +262,28 @@ if selected_topic != "-- 주제를 선택하세요 --":
     st.markdown("### 3. 주도 개념")
 
     # 크기를 50%로, 가운데 정렬 스타일
-    green_box_html = f"""
+    pink_box_html = f"""
     <div style="
-        background-color:#d4f8d4; 
+        background-color:#fce4ec; 
         padding:10px; 
         border-radius:5px; 
-        font-size:16px; 
-        width:50%; 
+        font-size:24px; 
+        width:25%; 
         margin-left:auto; 
         margin-right:auto; 
         text-align:center;">
         {', '.join(leading_concepts[selected_topic])}
     </div>
     """
-    st.markdown(green_box_html, unsafe_allow_html=True)
+    st.markdown(pink_box_html, unsafe_allow_html=True)
 
     st.markdown("---")  # 4번 질문 입력 전 구분선 추가
     st.markdown("### 4. 탐구 질문 만들기")
 
     # 4. 질문 입력 변경 부분: 안내문과 텍스트 영역 추가
-    st.markdown(f"사용자가 선택한 학습 주제 **'{selected_topic}'**와 관련하여 주도 개념을 활용한 탐구 질문을 생각하여 작성하세요.")
+    st.markdown(f"'{selected_topic}'와 관련하여 탐구 질문을 주도 개념을 포함하여 작성해보세요.")
     user_question = st.text_area(
-        "탐구 질문을 작성하세요 (최대 5문장까지 작성할 수 있습니다.)",
+        "탐구 질문을 최대 5문장까지 작성할 수 있습니다.",
         value="",
         max_chars=1000,  # 글자수 제한 임의 설정 (5문장 정도 넉넉히)
         height=130,
