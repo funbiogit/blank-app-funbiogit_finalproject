@@ -69,7 +69,7 @@ st.markdown("""
         border-radius: 12px;
         margin: 7px 0;
         box-shadow: 0 4px 13px rgba(51,153,255,0.09);
-        font-size: 15px;
+        font-size: 17px;
         border: none;
         color: #174a7c !important;
     }
@@ -126,17 +126,21 @@ st.markdown("""
         text-align: left;
         margin: 30px 0;
     }
+    [data-testid="stSidebar"] input[type="password"] {
+    width: 100% !important;  /* 사이드바 폭에 맞게 꽉 채움 */
+    min-width: 250px !important;  /* 최소 너비 설정 예시 */}        
+            
 </style>
 """, unsafe_allow_html=True)
 
 lens_data = {
     "관계": {
-        "정의": "관계는 두 개 이상의 요소가 한 방향 또는 상호 영향을 주고받는 방식이나 연결 방식을 의미한다.",
+        "정의": "두 개 이상의 요소사이에 존재하는 연관성 또는 관련이 있는 상태를 의미함.",
         "특징": "- 각 요소 중 하나 이상에 변화가 나타남<br> - 요소 간 주고받는 영향을 통해 복합적인 의미가 나타남"
     },
     "변화": {
-        "정의": "하나의 형태, 상태, 가치가 다른 형태, 상태, 가치로 전환, 변형 또는 이동하는 현상을 말한다.",
-        "특징": "- 원인, 과정, 결과의 틀 속에서 무엇이, 왜, 어떻게 달라지는지 설명할 수 있음<br>- 연속적 혹은 불연속적으로 일어날 수 있음"
+        "정의": "사물이나 현상의 성질, 모양, 상태 바뀌어 달라지는 현상.",
+        "특징": "- 원인, 과정, 결과에서 무엇이, 어떻게, 왜 달라지는지 설명할 수 있음<br>- 연속적 혹은 불연속적으로 일어날 수 있음"
     }
 }
 lens_map = {
