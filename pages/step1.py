@@ -2,20 +2,22 @@ import streamlit as st
 import os
 from fpdf import FPDF
 import io
+from openai import OpenAI
+
 
 st.markdown("""
 <style>
     [data-testid="stSidebar"] * { color: black !important; }
     [data-testid="stSidebar"] h3, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h1 {
         font-size: 1.25rem !important;
-        margin-bottom: 6px !important;
-        margin-top: 18px !important;
+        margin-bottom: 2px !important;
+        margin-top: 2px !important;
         font-weight: 700;
     }
     [data-testid="stSidebar"] .element-container, [data-testid="stSidebar"] .stTextInput,
     [data-testid="stSidebar"] .stSelectbox, [data-testid="stSidebar"] .stButton {
         margin-top: 2px !important;
-        margin-bottom: 7px !important;
+        margin-bottom: 2px !important;
     }
     [data-testid="stSidebar"] .sidebar-lens-box {
         background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);
@@ -25,7 +27,7 @@ st.markdown("""
         text-align: center;
         font-size: 20px;
         font-weight: 600;
-        margin: 10px auto 6px auto;
+        margin: 2px auto 2px auto;
         width: 210px;
         box-shadow: 0 6px 18px rgba(248, 187, 208, 0.18);
         border: 1.3px solid #f06292;
@@ -144,16 +146,26 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
 st.set_page_config(layout="wide")
+
 
 # --------------------
 # 사이드바 구성
 # --------------------
 with st.sidebar:
-    st.markdown("<h3 style='text-align:center; margin-bottom:12px;'>학습 주제 선택</h3>", unsafe_allow_html=True)
-    topic = st.selectbox("", ["생태계와 환경 변화", "진화와 생물 다양성"])
+    st.markdown("<h3 style='text-align:center; margin-bottom:1px;'>학습 주제 선택</h3>", unsafe_allow_html=True)
+    topic = st.selectbox(
+        "주제 선택",
+        ["-- 주제를 선택하세요 --", "생태계와 환경 변화", "진화와 생물 다양성"],
+        label_visibility="collapsed"
+    )
+    # 사용자가 안내 선택 안 했을 때엔 ""으로 바꿔 전체 코드 정상 동작하도록 처리
+    if topic == "-- 주제를 선택하세요 --":
+        topic = ""
     st.markdown("---")
-    st.markdown("<h3 style='text-align:center; margin-bottom:10px;'>개념 렌즈</h3>", unsafe_allow_html=True)
+
+    st.markdown("<h3 style='text-align:center; margin-bottom:5px;'>개념 렌즈</h3>", unsafe_allow_html=True)
     if topic == "생태계와 환경 변화":
         lens = "관계"
         lens_def = "관계는 두 개 이상의 요소가 한 방향 또는 상호 영향을 주고받는 방식이나 연결 방식을 의미한다."
@@ -170,12 +182,24 @@ with st.sidebar:
     st.markdown(f"<div class='definition-card'><b>정의:</b> {lens_def}</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='feature-card'><b>특징:</b> {lens_feat}</div>", unsafe_allow_html=True)
 
-    
     st.markdown("---")
-    api_key = st.text_input("OpenAI API Key 입력", type="password")
-    
+    st.markdown("<h3 style='text-align:center; margin-bottom:5px;'>OpenAI API 키 입력</h3>", unsafe_allow_html=True)
+    with st.container():
+        api_key_input = st.text_input(
+            "API 키 입력",
+            type="password",
+            value=st.session_state.get("openai_api_key", ""),
+            help="API 키를 입력해 주세요.",
+            label_visibility="collapsed"
+        )
+    if api_key_input != st.session_state.get("openai_api_key", ""):
+        st.session_state["openai_api_key"] = api_key_input
+        st.success("API 키가 저장되었습니다.")
+
+    api_key = st.session_state.get("openai_api_key", "")
+
     st.markdown("---")
-    st.markdown("<h3 style='text-align:center; margin-bottom:10px;'>PDF 저장하기</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align:center; margin-bottom:5px;'>PDF 저장하기</h3>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([0.2, 1, 1])
     with col2:
         if st.button("PDF 생성", use_container_width=True):
@@ -190,7 +214,6 @@ with st.sidebar:
                     pdf.set_text_color(0, 128, 0)
                 else:
                     pdf.set_text_color(200, 0, 0)
-                pdf.cell(200, 10, txt=f"[{category}]", ln=True)
                 for s, v in st.session_state.sentence_assignments.items():
                     if v == category:
                         pdf.cell(200, 10, txt=f"- {s}", ln=True)
@@ -204,6 +227,7 @@ with st.sidebar:
                 mime="application/pdf",
                 use_container_width=True
             )
+
 
 # 메인
 if topic == "생태계와 환경 변화":
@@ -261,7 +285,7 @@ if topic == "생태계와 환경 변화":
                 {
                     "role": "system",
                     "content": (
-f"""당신은 중학생 과학 교육 전문가입니다.
+"""당신은 중학생 과학 교육 전문가입니다.
 학생이 '{abiotic}'과 생물 요소 사이 상호 작용에 대해 여러 문장으로 작성했습니다.
 학생 답변에 '{abiotic}'와 관련된 내용이 있는지 우선 판단하세요.
 - 만약 관련 내용이 전혀 없으면,
@@ -279,7 +303,7 @@ f"""당신은 중학생 과학 교육 전문가입니다.
    절대로 새로운 예시나 사례를 추가하지 마세요.
 명확하고 객관적이면서 6문장 이내로 학생이 이해하도록 도우세요.
 --- 학생 답변 시작 ---
-"""                     
+""".format(abiotic=abiotic)
                     ),
                 },
                 {"role": "user", "content": user_input.strip()}
@@ -337,13 +361,13 @@ f"""당신은 중학생 과학 교육 전문가입니다.
     correct_decomposers = {"세균", "곰팡이"}
     wrong_prod = set(producers) - correct_producers
     if wrong_prod:
-        wrong_classification.append("생산자 분류에 잘못된 선택이 포함되었습니다.")
+        wrong_classification.append(f"생산자 분류에 잘못된 선택이 포함되었습니다.")
     wrong_cons = set(consumers) - correct_consumers
     if wrong_cons:
-        wrong_classification.append("소비자 분류에 잘못된 선택이 포함되었습니다.")
+        wrong_classification.append(f"소비자 분류에 잘못된 선택이 포함되었습니다.")
     wrong_decom = set(decomposers) - correct_decomposers
     if wrong_decom:
-        wrong_classification.append("분해자 분류에 잘못된 선택이 포함되었습니다.")
+        wrong_classification.append(f"분해자 분류에 잘못된 선택이 포함되었습니다.")
     if wrong_classification:
         st.markdown("<span style='color:red;'><b>분류 오류 피드백:</b><br>" + "<br>".join(wrong_classification) + "</span>", unsafe_allow_html=True)
 
@@ -369,7 +393,7 @@ f"""당신은 중학생 과학 교육 전문가입니다.
         and selected_consumer_2 != "선택하세요"
         and selected_consumer_1 == selected_consumer_2
     ):
-        consumer_feedback_messages.append('<span style="color:red;">1차 소비자와 다른 생물을 선택해주세요.</span>')
+        consumer_feedback_messages.append('<span style="color:red;">1차 소비자와 2차 소비자를 서로 다르게 선택해주세요.</span>')
 
     if consumer_feedback_messages:
         st.markdown("<br>".join(consumer_feedback_messages), unsafe_allow_html=True)
@@ -409,7 +433,7 @@ f"""당신은 중학생 과학 교육 전문가입니다.
             st.markdown(f"<div style='color:green;'>{feedback_dc}</div>", unsafe_allow_html=True)
 
     st.markdown("**이들 사례를 종합하여 아래 문장의 빈칸을 채워보세요.**")
-    summary_text = st.text_input("생물 요소 사이에는 [        ] 관계가 있다.")
+    summary_text = st.text_input("생물 요소 사이에는 [       ] 관계가 있다.")
     if api_key and summary_text.strip():
         client = get_openai_client(api_key)
         if client is not None:

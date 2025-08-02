@@ -9,14 +9,14 @@ st.markdown("""
     [data-testid="stSidebar"] * { color: black !important; }
     [data-testid="stSidebar"] h3, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h1 {
         font-size: 1.25rem !important;
-        margin-bottom: 6px !important;
-        margin-top: 18px !important;
+        margin-bottom: 2px !important;
+        margin-top: 2px !important;
         font-weight: 700;
     }
     [data-testid="stSidebar"] .element-container, [data-testid="stSidebar"] .stTextInput,
     [data-testid="stSidebar"] .stSelectbox, [data-testid="stSidebar"] .stButton {
         margin-top: 2px !important;
-        margin-bottom: 7px !important;
+        margin-bottom: 2px !important;
     }
     [data-testid="stSidebar"] .sidebar-lens-box {
         background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);
@@ -26,7 +26,7 @@ st.markdown("""
         text-align: center;
         font-size: 20px;
         font-weight: 600;
-        margin: 10px auto 6px auto;
+        margin: 2px auto 2px auto;
         width: 210px;
         box-shadow: 0 6px 18px rgba(248, 187, 208, 0.18);
         border: 1.3px solid #f06292;
@@ -175,7 +175,7 @@ st.set_page_config(page_title="개념기반 탐구 수업 도구", layout="wide"
 
 with st.sidebar:
     
-    st.markdown("<h3 style='text-align:center; margin-bottom:11px;'>학습 주제를 선택하세요</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align:center; margin-bottom:5px;'>학습 주제 선택</h3>", unsafe_allow_html=True)
     with st.container():
         selected_topic = st.selectbox(
             "주제 선택",
@@ -183,7 +183,7 @@ with st.sidebar:
             label_visibility="collapsed"
         )
     st.markdown("---")
-    st.markdown("<h3 style='text-align:center; margin-bottom:10px;'>개념 렌즈</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align:center; margin-bottom:5px;'>개념 렌즈</h3>", unsafe_allow_html=True)
     if selected_topic != "-- 주제를 선택하세요 --":
         st.markdown(
             f"<div class='sidebar-lens-box'>{lens_map[selected_topic]}</div>",
@@ -193,7 +193,7 @@ with st.sidebar:
         st.info("학습 주제를 선택하면 표시됩니다.")
     st.markdown("---")
     
-    st.markdown("<h3 style='text-align:center; margin-bottom:12px;'>OpenAI API 키 입력</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align:center; margin-bottom:5px;'>OpenAI API 키 입력</h3>", unsafe_allow_html=True)
     with st.container():
         api_key_input = st.text_input(
             "API 키 입력", type="password",
@@ -207,7 +207,7 @@ with st.sidebar:
 
     st.markdown("---")
 
-    st.markdown("<h3 style='text-align:center; margin-bottom:10px;'>PDF 저장하기</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align:center; margin-bottom:5px;'>PDF 저장하기</h3>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([0.2, 1, 1])
     with col2:
         if st.button("PDF 생성", use_container_width=True):
