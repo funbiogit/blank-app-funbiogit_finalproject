@@ -185,6 +185,7 @@ with st.sidebar:
     if api_key_input != st.session_state.openai_api_key:
         st.session_state.openai_api_key = api_key_input
         st.success("API 키가 저장되었습니다.")
+
     st.markdown("---")
     st.markdown("<h3 style='text-align:center; margin-bottom:11px;'>학습 주제를 선택하세요</h3>", unsafe_allow_html=True)
     with st.container():
@@ -203,6 +204,7 @@ with st.sidebar:
     else:
         st.info("학습 주제를 선택하면 표시됩니다.")
     st.markdown("---")
+    
     st.markdown("<h3 style='text-align:center; margin-bottom:10px;'>PDF 저장하기</h3>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([0.2, 1, 1])
     with col2:
