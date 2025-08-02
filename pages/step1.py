@@ -215,6 +215,7 @@ if topic == "생태계와 환경 변화":
     for i, elem in enumerate(all_elements):
         with cols[i % 4]:
             st.markdown(f"<div class='center-box'>{elem}</div>", unsafe_allow_html=True)
+    st.markdown("---")
 
     st.subheader("2. 요소 분류하기")
     bio_selected = st.multiselect("생물 요소로 분류할 것들", all_elements)
@@ -226,6 +227,7 @@ if topic == "생태계와 환경 변화":
     with col2:
         if any(e in bio_selected for e in ["빛", "공기", "온도"]) or any(e in abio_selected for e in ["벼", "참새", "족제비", "세균", "메뚜기", "곰팡이", "콩"]):
             st.markdown("<span style='color:red;'>다시 한 번 생각해보세요.</span>", unsafe_allow_html=True)
+    st.markdown("---")
 
     st.subheader("3. 생물 요소와 비생물 요소 간의 관계")
     st.markdown("다음에 제시된 요소 사이에서 나타나는 상호 관계의 예시를 조사하여 작성해보세요:")
@@ -300,6 +302,7 @@ f"""당신은 중학생 과학 교육 전문가입니다.
     if fb_air:
         st.markdown(f"<div style='color:blue;'>{fb_air}</div>", unsafe_allow_html=True)
 
+    st.markdown("---")
     st.subheader("4. 생물 요소의 세 가지 역할")
     st.markdown("- 생물 요소는 <b>생산자, 소비자, 분해자</b>로 구분됩니다.", unsafe_allow_html=True)
     st.markdown("다음 각각의 용어에 해당하는 설명을 골라보세요.")
@@ -316,6 +319,7 @@ f"""당신은 중학생 과학 교육 전문가입니다.
         elif answer != "선택하세요":
             st.warning("다시 생각해보세요.")
 
+    st.markdown("---")
     st.subheader("5. 생물 요소 분류하기")
     producers = st.multiselect("생산자", bio_selected)
     consumers = st.multiselect("소비자", bio_selected)
@@ -343,6 +347,7 @@ f"""당신은 중학생 과학 교육 전문가입니다.
     if wrong_classification:
         st.markdown("<span style='color:red;'><b>분류 오류 피드백:</b><br>" + "<br>".join(wrong_classification) + "</span>", unsafe_allow_html=True)
 
+    st.markdown("---")
     st.subheader("6. 생물 간 상호작용 조사")
     st.markdown("**역할별로 분류한 생물 중 한 가지씩을 고르세요.**")
     selected_producer = st.selectbox("생산자 중 하나 선택", ["선택하세요"] + producers, key="select_producer")
